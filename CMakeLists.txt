@@ -2,64 +2,74 @@ cmake_minimum_required(VERSION 2.8.3)
 project(door_handle_detection)
 
 find_package(catkin REQUIRED COMPONENTS
-  sensor_msgs
-  roscpp
-  std_msgs
-  visp_bridge
-  image_transport
-#  visp_ros
-  pcl_msgs
-  pcl_ros
-  pcl_conversions
-)
+        sensor_msgs
+        roscpp
+        std_msgs
+        visp_bridge
+        image_transport
+        #  visp_ros
+        pcl_msgs
+        pcl_ros
+        pcl_conversions
+        )
 
 find_package(VISP REQUIRED)
 #find_package(PCL 1.2 REQUIRED)
-find_package(PCL 1.8.0 REQUIRED)
+find_package(PCL 1.8.0 REQUIRED) # This is the original one
+#find_package(PCL 1.7.2 REQUIRED)
+find_package(OpenCV REQUIRED) #added by EBK
 
 add_definitions(
-${VISP_DEFINITIONS}
-${PCL_DEFINITIONS}
+        ${VISP_DEFINITIONS}
+        ${PCL_DEFINITIONS}
+        #${OpenCV_DEFINITIONS}
 )
 
 ###################################
 ## catkin specific configuration ##
 ###################################
 catkin_package(
-  INCLUDE_DIRS
-    include
+        INCLUDE_DIRS
+        include
 
-  LIBRARIES
-    ${PROJECT_NAME}
+        LIBRARIES
+        ${PROJECT_NAME}
 
-  CATKIN_DEPENDS
-    roscpp
-    std_msgs
-    visp_bridge
-    sensor_msgs 
+        CATKIN_DEPENDS
+        roscpp
+        std_msgs
+        visp_bridge
+        sensor_msgs
 
-  DEPENDS
-    VISP
+        DEPENDS
+        VISP
 )
 
 ###########
 ## Build ##
 ###########
 include_directories(
-  ${PCL_INCLUDE_DIRS}
-  ${catkin_INCLUDE_DIRS}
-  ${VISP_INCLUDE_DIRS}
+        ${PCL_INCLUDE_DIRS}
+        ${catkin_INCLUDE_DIRS}
+        ${VISP_INCLUDE_DIRS}
+        ${OpenCV_INCLUDE_DIRS}
+        ${OpenCV_LIB_COMPONENTS}
+        ${OpenCV_LIBRARIES}
 )
 add_definitions(${PCL_DEFINITIONS})
 
 include_directories(include)
 
-link_directories(${PCL_LIBRARY_DIRS})
+link_directories(
+        ${PCL_LIBRARY_DIRS}
+        ${OpenCV_INCLUDE_DIRS}
+)
+
 ## Declare a cpp library
 add_library(door_handle_detection
-  include/door_handle_detection.h
-  src/door_handle_detection.cpp
-)
+        include/door_handle_detection.h
+        src/door_handle_detection.cpp
+        )
 
 ## Declare a cpp executable
 #add_executable(test_3d_node src/test.cpp)
@@ -74,10 +84,11 @@ add_executable(door_handle_detection_node src/door_handle_detection.cpp)
 #   ${catkin_LIBRARIES}
 #   ${PCL_LIBRARIES}
 # )
- target_link_libraries(door_handle_detection_node
-   ${catkin_LIBRARIES}
-   ${PCL_LIBRARIES}
- )
+target_link_libraries(door_handle_detection_node
+        ${catkin_LIBRARIES}
+        ${PCL_LIBRARIES}
+        ${OpenCV_LIBS}
+        )
 
 
 #############
@@ -130,10 +141,9 @@ add_executable(door_handle_detection_node src/door_handle_detection.cpp)
 
 
 
-#add_executable(dots_tracker 
+#add_executable(dots_tracker
 #		src/dots_tracker.cpp
 #		src/VScam.h
 #		src/VScam.cpp
 #		)
-
 

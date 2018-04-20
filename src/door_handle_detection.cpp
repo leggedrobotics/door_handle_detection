@@ -410,6 +410,7 @@ void DoorHandleDetectionNode::mainComputation(const sensor_msgs::PointCloud2::Co
 
         //Compute the pose of the door handle with respect to the RGB camera
         m_cMh = cMd * m_dMh;
+        m_cMh[0][3] += 39.59391032; // added by EBK. This fix is definetly neccessary. there is a probem in cooridnate transformation
 
         //Kalman Filter
         vpTranslationVector T_cMh = m_cMh.getTranslationVector();
@@ -438,9 +439,12 @@ void DoorHandleDetectionNode::mainComputation(const sensor_msgs::PointCloud2::Co
           m_cMh_filtered_kalman[i][3] = translation_estimated.at<double>(i);
         }
 
-        //Publish the pose of the handle with respect to the camera
+        //Publish the pose of CENTER OF THE handle with respect to the camera
         cMdh_msg.header.stamp = ros::Time::now();
-        cMdh_msg.pose = visp_bridge::toGeometryMsgsPose(m_cMh_filtered_kalman);
+        cMdh_msg.pose.position.x = centroidDH[0];
+        cMdh_msg.pose.position.y = centroidDH[1];
+        cMdh_msg.pose.position.z = centroidDH[2];
+        cMdh_msg.pose.orientation = ( visp_bridge::toGeometryMsgsPose(m_cMh_filtered_kalman) ).orientation;
         cMdh_msg.header.frame_id = m_parent_rgb_tf;
         pose_handle_pub.publish(cMdh_msg);
 
@@ -498,7 +502,7 @@ vpHomogeneousMatrix DoorHandleDetectionNode::createTFLine(const vpColVector dire
 
   //Put the pose of the handle in its rotation axis instead of its cog
   centroidBorder = dMdh.inverse() * centroid;
-  centroidBorder[0] = centroidBorder[0] - (m_lenght_dh / 2) + 0.015;
+  //centroidBorder[0] = centroidBorder[0] - (m_lenght_dh / 2) + 0.015; // COMMENTED OUT BY EBK TO PUT THE TF AT THE CENTROID
   centroidBorder = dMdh * centroidBorder;
 
   //Create the pose of the handle with respect to the depth camera in the rotation axis of the handle
@@ -598,7 +602,7 @@ vpHomogeneousMatrix DoorHandleDetectionNode::createTFPlane(const vpColVector coe
   q.setZ(dMp_msg.orientation.z);
   q.setW(dMp_msg.orientation.w);
   transform.setRotation(q);
-  br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), m_parent_depth_tf, "tf_plane"));
+  //br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), m_parent_depth_tf, "tf_plane"));  // Commented By EBK !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   return dMp;
 }
@@ -659,8 +663,8 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr DoorHandleDetectionNode::createPCLSandwich(c
       zc = cloud->points[i].z;
 
       //Create a zmin and zmax for every point to check if the point is outside or inside the detection
-      z_min = -(coefficients[0]*xc + coefficients[1]*yc + (coefficients[3] + m_height_dh + 0.02) )/(coefficients[2]);
-      z_max = -(coefficients[0]*xc + coefficients[1]*yc + (coefficients[3] + m_height_dh - 0.02) )/(coefficients[2]);
+      z_min = -(coefficients[0]*xc + coefficients[1]*yc + (coefficients[3] + m_height_dh + 0.03) )/(coefficients[2]); // origianlly + 0.02
+      z_max = -(coefficients[0]*xc + coefficients[1]*yc + (coefficients[3] + m_height_dh - 0.03) )/(coefficients[2]); // originally -0.02
 
       //If the point is inside, we add it to the new point cloud
       if (cloud->points[i].z > z_min && cloud->points[i].z < z_max )
@@ -889,7 +893,7 @@ void DoorHandleDetectionNode::morphoSandwich(const pcl::PointCloud<pcl::PointXYZ
     searchingField.setBottomRight(bottomRightBBoxHandle);
     vpDisplay::displayRectangle(m_img_mono, bboxhandle, vpColor::yellow, 0, 2);
   }
-  //If the tracking doesn't work, the field of view is set back to all the image
+    //If the tracking doesn't work, the field of view is set back to all the image
   else
   {
     vpPixelMeterConversion::convertPoint(m_cam_depth, 0, 0, m_x_min, m_y_min);

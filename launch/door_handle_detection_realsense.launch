@@ -4,14 +4,14 @@ Launch file to run the detection of a door handle with the realsense 300.
 -->
 <launch>
   <node pkg="door_handle_detection" type="door_handle_detection_node" name="door_handle_detection" output="screen" >
-    <param name="pclTopicName" type="string" value="/SR300/depth/points"/>
-    <param name="cameraRGBTopicName" type="string" value="/SR300/rgb/camera_info"/>
-    <param name="cameraDepthTopicName" type="string" value="/SR300/depth/camera_info"/>
-    <param name="imageTopicName" type="string" value="/SR300/rgb/image_raw"/>
-    <param name="dh_right" type="bool" value="true"/> <!--orientation of the door handle, if the door handle is towards the right: dh_right=true else dh_right=false -->
-    <param name="height_dh" value="0.075"/>  <!--distance between the door handle and the plane of the door-->
-    <param name="lenght_dh" value="0.1"/>  <!--lenght of the door handle-->
-    <param name="debug" type="bool" value="false"/> <!--A quick way to debug which publish and display more info-->
+    <param name="pclTopicName" type="string" value="/realsense_zr300/points2"/>
+    <param name="cameraRGBTopicName" type="string" value="/realsense_zr300/rgb/camera_info"/>
+    <param name="cameraDepthTopicName" type="string" value="/realsense_zr300/depth/camera_info"/>
+    <param name="imageTopicName" type="string" value="/realsense_zr300/rgb/image_raw"/>
+    <param name="dh_right" type="bool" value="false"/> <!--orientation of the door handle, if the door handle is towards the right: dh_right=true else dh_right=false -->
+    <param name="height_dh" value="0.07"/>  <!--distance between the door handle and the plane of the door-->
+    <param name="lenght_dh" value="0.10"/>  <!--lenght of the door handle-->
+    <param name="debug" type="bool" value="true"/> <!--A quick way to debug which publish and display more info-->
   </node>
 
 </launch>
