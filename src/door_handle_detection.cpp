@@ -203,7 +203,7 @@ DoorHandleDetectionNode::DoorHandleDetectionNode(ros::NodeHandle nh)
   n.param("dh_right", m_dh_right, true);
   n.param("lenght_dh",m_lenght_dh, 0.1);
   n.param("height_dh", m_height_dh, 0.055);
-  n.param("debug", debug, false);
+  n.param("debug", debug, true);
 
   //Subscribe to services
   cam_rgb_info_sub = n.subscribe( m_cameraRGBTopicName, 1, (boost::function < void(const sensor_msgs::CameraInfo::ConstPtr&)>) boost::bind( &DoorHandleDetectionNode::setupCameraParameters, this, _1 ));
@@ -259,6 +259,8 @@ void DoorHandleDetectionNode::spin()
 
 void DoorHandleDetectionNode::mainComputation(const sensor_msgs::PointCloud2::ConstPtr &image)
 {
+
+
   pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
   pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_bbox(new pcl::PointCloud<pcl::PointXYZ>);
   pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_sandwich(new pcl::PointCloud<pcl::PointXYZ>);
@@ -316,6 +318,11 @@ void DoorHandleDetectionNode::mainComputation(const sensor_msgs::PointCloud2::Co
         //Create the center of the plane
         vpColVector centroidPlane(3);
         centroidPlane = DoorHandleDetectionNode::getCentroidPCL(plane);
+        std::cout<<"centroid: "<<centroidPlane<<std::endl;
+
+        std::cout<<"centroid 0: "<<centroidPlane[0]<<std::endl;
+        std::cout<<"centroid 1: "<<centroidPlane[1]<<std::endl;
+        std::cout<<"centroid 2: "<<centroidPlane[2]<<std::endl;
 
         //Create a tf for the plane
         dMp = DoorHandleDetectionNode::createTFPlane(coeffs, centroidPlane[0], centroidPlane[1], centroidPlane[2]);
@@ -564,6 +571,16 @@ vpHomogeneousMatrix DoorHandleDetectionNode::createTFPlane(const vpColVector coe
 
   normal.normalize();
 
+  std::cout<<"coef0: "<<coeffs[0]<<std::endl;
+  std::cout<<"coef1: "<<coeffs[1]<<std::endl;
+  std::cout<<"coef2: "<<coeffs[2]<<std::endl;
+  std::cout<<"coef3: "<<coeffs[3]<<std::endl;
+  std::cout<<"x: "<<x<<std::endl;
+  std::cout<<"y: "<<y<<std::endl;
+  std::cout<<"z: "<<z<<std::endl;
+  std::cout<<"---------------"<<std::endl<<std::endl;
+
+
   //Create a xp vector that is following the equation of the plane
   xp[0] = - (coeffs[1]*y + coeffs[2]*(z+0.05) + coeffs[3]) / (coeffs[0]) - x;
   xp[1] = 0;
@@ -573,15 +590,17 @@ vpHomogeneousMatrix DoorHandleDetectionNode::createTFPlane(const vpColVector coe
   yp = vpColVector::cross(normal,xp);
 
   //Create the Rotation Matrix
-  dRp[0][0] = xp[0];
+  dRp[0][0] = xp[0]; //
   dRp[1][0] = xp[1];
   dRp[2][0] = xp[2];
-  dRp[0][1] = yp[0];
-  dRp[1][1] = yp[1];
-  dRp[2][1] = yp[2];
+  dRp[0][1] = yp[0]; //
+  dRp[1][1] = yp[1]; //
+  dRp[2][1] = yp[2]; //
   dRp[0][2] = normal[0];
   dRp[1][2] = normal[1];
   dRp[2][2] = normal[2];
+
+//  std::cout<<"dRp: "<<std::endl<<dRp<<std::endl<<std::endl<<"###########"<<std::endl;
 
   transform.setOrigin( tf::Vector3(x, y, z) );
 
@@ -590,6 +609,8 @@ vpHomogeneousMatrix DoorHandleDetectionNode::createTFPlane(const vpColVector coe
 
   //Create the translation Vector
   P0 = vpTranslationVector(x, y, z0);
+
+  std::cout<<"p0: "<<std::endl<<P0<<std::endl<<std::endl<<"###########"<<std::endl;
 
   //Create the homogeneous Matrix
   dMp = vpHomogeneousMatrix(P0, dRp);
@@ -602,7 +623,7 @@ vpHomogeneousMatrix DoorHandleDetectionNode::createTFPlane(const vpColVector coe
   q.setZ(dMp_msg.orientation.z);
   q.setW(dMp_msg.orientation.w);
   transform.setRotation(q);
-  //br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), m_parent_depth_tf, "tf_plane"));  // Commented By EBK !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), m_parent_depth_tf, "tf_plane"));  // couses ERROR Commented By EBK !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   return dMp;
 }
@@ -632,14 +653,33 @@ vpColVector DoorHandleDetectionNode::getCentroidPCL(const pcl::PointCloud<pcl::P
 {
   vpColVector centroid(3);
   double sumx = 0, sumy = 0, sumz = 0;
-  for (int i = 0; i < cloud->size(); i++){
-    sumx += cloud->points[i].x;
-    sumy += cloud->points[i].y;
-    sumz += cloud->points[i].z;
+  //std::cout<<"size: "<<cloud->size()<<std::endl;
+  int k = 0; // added by EBK
+  for (int i = 0; i < cloud->size(); i++)
+  {
+    if( std::isnan(cloud->points[i].x) == 1 || std::isnan(cloud->points[i].y) == 1 || std::isnan(cloud->points[i].z) == 1 )
+    {
+      k = k+1;
+    }
+    else
+    {
+      sumx += cloud->points[i].x;
+      sumy += cloud->points[i].y;
+      sumz += cloud->points[i].z;
+    }
   }
-  centroid[0] = sumx/cloud->size();
-  centroid[1] = sumy/cloud->size();
-  centroid[2] = sumz/cloud->size();
+  centroid[0] = sumx/(cloud->size()-k);
+  centroid[1] = sumy/(cloud->size()-k);
+  centroid[2] = sumz/(cloud->size()-k);
+
+//  std::cout<<"sumx: "<<sumx<<std::endl;
+//  std::cout<<"sumy: "<<sumy<<std::endl;
+//  std::cout<<"sumz: "<<sumz<<std::endl;
+  std::cout<<"will be centroid[0]: "<<centroid[0]<<std::endl;
+  std::cout<<"will be centroid[1]: "<<centroid[1]<<std::endl;
+  std::cout<<"will be centroid[2]: "<<centroid[2]<<std::endl;
+//
+//  std::cout<<"********end********"<<std::endl<<std::endl;
 
   return centroid;
 }
@@ -684,6 +724,7 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr DoorHandleDetectionNode::createPCLSandwich(c
 
 void DoorHandleDetectionNode::setupCameraParameters(const sensor_msgs::CameraInfoConstPtr &cam_rgb)
 {
+
   if (! m_cam_is_initialized && m_extrinsic_param_are_initialized) {
     //Init the RGB camera parameters
     m_cam_rgb = visp_bridge::toVispCameraParameters(*cam_rgb);
@@ -693,6 +734,11 @@ void DoorHandleDetectionNode::setupCameraParameters(const sensor_msgs::CameraInf
     m_cam_is_initialized = true;
     cam_rgb_info_sub.shutdown();
   }
+//  std::cout<<"x_min : "<<m_x_min<<std::endl;
+//  std::cout<<"x_max : "<<m_x_max<<std::endl;
+//  std::cout<<"y_min : "<<m_y_min<<std::endl;
+//  std::cout<<"x_max : "<<m_y_max<<std::endl;
+
 }
 
 void DoorHandleDetectionNode::getExtrinsicParameters(const sensor_msgs::CameraInfoConstPtr &cam_depth)
@@ -956,6 +1002,7 @@ vpColVector DoorHandleDetectionNode::getCoeffLineWithODR(const pcl::PointCloud<p
 {
   vpMatrix M(cloud->size(),3);
   vpRowVector m(3);
+//  std::cout<<"**********Start*********"<<std::endl;
   vpColVector centroid = DoorHandleDetectionNode::getCentroidPCL(cloud);
 
   //Create a Matrix(n,3) with the coordinates of all the points
